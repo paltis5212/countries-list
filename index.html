@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+
+<body>
+    <div id="app" class="container">
+        <!-- 搜尋 -->
+        <input type="text" placeholder="請輸入要搜尋的國家名稱..." v-model="searchValue">
+        <!-- 顯示資料 -->
+        <table class="highlight centered responsive-table">
+            <thead>
+                <tr>
+                    <th>國旗</th>
+                    <th><a @click="sortChangeHandler" href="javascript:void(0);">國家名稱<i class="material-icons">{{
+                                sortIcon }}</i></a>
+                    </th>
+                    <th>2位國家代碼</th>
+                    <th>3位國家代碼</th>
+                    <th>母語名稱</th>
+                    <th>替代國家名稱</th>
+                    <th>國際電話區號</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="item in showData" :key="item.name">
+                    <td><img :src="item.flag" width="50px"></td>
+                    <td><a class="modal-trigger" data-target="showCountry" @click="modalItem = item"
+                            href="javascript:void(0);">{{ item.name }}</a>
+                    </td>
+                    <td>{{ item.alpha2Code }}</td>
+                    <td>{{ item.alpha3Code }}</td>
+                    <td>{{ item.nativeName }}</td>
+                    <td>{{ item.altSpellings.join(", ") }}</td>
+                    <td>{{ item.callingCodes.join(", ") }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <!-- 分頁 -->
+        <ul class="pagination">
+            <li :class="currPage == 0 ? 'disabled' : 'waves-effect'"><a @click="pageChangeHandler(currPage - 1)"><i
+                        class="material-icons">chevron_left</i></a></li>
+            <li v-for="n in pageCount" :class="n - 1 == currPage ? 'active' : 'waves-effect'"><a
+                    @click="pageChangeHandler(n - 1)">{{ n }}</a></li>
+            <li :class="currPage == pageCount - 1 ? 'disabled' : 'waves-effect'"><a
+                    @click="pageChangeHandler(currPage + 1)"><i class="material-icons">chevron_right</i></a></li>
+        </ul>
+        <!-- 詳情視窗 -->
+        <div id="showCountry" class="modal modal-fixed-footer">
+            <div class="modal-content">
+                <h4>{{ modalItem.name }}</h4>
+                <pre style="white-space: pre-wrap;">{{ modalItem }}</pre>
+            </div>
+            <div class="modal-footer">
+                <a class="modal-close waves-effect waves-green btn-flat">確定</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var elems = document.querySelectorAll('.modal');
+            var instances = M.Modal.init(elems, {});
+        });
+
+        var app = new Vue({
+            el: '#app',
+            data: {
+                pageSize: 25,
+                currPage: 0,
+                pageCount: 0,
+                searchValue: "",
+                sortType: true,
+                allData: [],
+                modalItem: {},
+            },
+            mounted: function () {
+                fetch("https://restcountries.eu/rest/v2/all", { method: 'GET' })
+                    .then(res => {
+                        return res.json();
+                    }).then(result => {
+                        this.allData = result;
+                        this.setPageCount(result)
+                    });
+            },
+            computed: {
+                sortIcon: function () { return this.sortType ? "expand_less" : "expand_more" },
+                showData: function () {
+                    let result = [];
+                    if (this.searchValue != "") {
+                        let _this = this;
+                        // 搜尋
+                        this.allData.map(function (item) {
+                            if (item.name.search(new RegExp(_this.searchValue, "i")) != -1) result.push(item);
+                        })
+                        // 要設成 0，萬一之前停留在不存在的分頁就不好了。
+                        this.currPage = 0;
+                    } else {
+                        result = this.allData;
+                    }
+                    this.setPageCount(result)
+                    return result.slice(this.currPage * this.pageSize, (this.currPage + 1) * this.pageSize);
+                },
+            },
+            methods: {
+                pageChangeHandler: function (currPage) {
+                    // 固定範圍
+                    if (currPage < 0) currPage = 0;
+                    if (currPage >= this.pageCount) currPage = this.pageCount - 1;
+                    this.currPage = currPage;
+                },
+                sortChangeHandler: function () {
+                    this.sortType = !this.sortType;
+                    this.allData = this.allData.reverse();
+                },
+                // 重置分頁數
+                setPageCount: function (data) {
+                    this.pageCount = Math.ceil(data.length / this.pageSize);
+                },
+
+            },
+
+        })
+    </script>
+</body>
+
+</html>
